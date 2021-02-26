@@ -1,7 +1,9 @@
 import threading
 import time
 
+
 class StateManager(threading.Thread):
+    # StateManager stores current status of the system
 
     def __init__(self, server_queue, task_manager):
         threading.Thread.__init__(self)

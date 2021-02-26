@@ -3,6 +3,7 @@ import time
 
 
 class TaskManager(threading.Thread):
+    # When the server receives TaskManager
 
     def __init__(self, server_queue):
         threading.Thread.__init__(self)
