@@ -1,7 +1,7 @@
-#include <SoftwareSerial.h> 
-#define BT_RXD 2 
-#define BT_TXD 3 
-SoftwareSerial ESP_wifi(BT_RXD, BT_TXD); 
+#include <SoftwareSerial.h>
+#define WIFI_RXD 8 
+#define WIFI_TXD 9
+SoftwareSerial ESP_wifi(WIFI_RXD, WIFI_TXD); 
 void setup() { 
   Serial.begin(9600); 
   ESP_wifi.begin(9600); 

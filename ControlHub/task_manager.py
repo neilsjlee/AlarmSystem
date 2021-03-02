@@ -26,7 +26,8 @@ class TaskManager(threading.Thread):
 
         while(True):
             if self.run_task_switch:
-                self.pop_server_queue()
+                if self.server_q.qsize() > 0:
+                    self.pop_server_queue()
 
             time.sleep(0.01)
 
