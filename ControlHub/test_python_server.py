@@ -16,7 +16,7 @@ server = Flask(__name__)
 @server.route('/register', methods=['POST'])
 def register():
     data = request.get_json()
-    server_queue.put(ReceivedRequest(5, time.time(), request.remote_addr, data))
+    server_queue.put(ReceivedRequest('register', 5, time.time(), request.remote_addr, data))
     return jsonify(data)
 
 
@@ -24,7 +24,7 @@ def register():
 @server.route('/alert', methods=['POST'])
 def alert():
     data = request.get_json()
-    server_queue.put(ReceivedRequest(1, time.time(), request.remote_addr, data))
+    server_queue.put(ReceivedRequest('alert', 1, time.time(), request.remote_addr, data))
     return jsonify(data)
 
 
@@ -34,7 +34,8 @@ def run_server():
 
 
 class ReceivedRequest:
-    def __init__(self, priority, timestamp, address, data):
+    def __init__(self, uri, priority, timestamp, address, data):
+        self.uri = uri
         self.priority = priority
         self.timestamp = timestamp
         self.address = address
