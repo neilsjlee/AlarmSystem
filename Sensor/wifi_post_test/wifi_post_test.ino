@@ -9,8 +9,15 @@
 
 #ifndef HAVE_HWSERIAL1
 #include "SoftwareSerial.h"
+
+#define pirPin 2
+#define ledPin 4
+
 SoftwareSerial Serial1(8, 9); // RX, TX
 #endif
+
+int pirSensorRead = 0;
+bool motionState = false;
 
 char ssid[] = "ATTb3hjRMS";            // your network SSID (name)
 char pass[] = "kz7hwdt7jtpy";        // your network password
@@ -19,6 +26,8 @@ int status = WL_IDLE_STATUS;     // the Wifi radio's status
 char server[] = "192.168.1.89";
 
 int cnt=0;
+int interval = 5000;
+unsigned long previousMillis = 0;
 
 
 // Initialize the Ethernet client object
@@ -26,6 +35,9 @@ WiFiEspClient client;
 
 void setup()
 {
+  pinMode(ledPin, OUTPUT);
+  pinMode(pirPin, INPUT);
+  
   // initialize serial for debugging
   Serial.begin(115200);
   // initialize serial for ESP module
@@ -58,6 +70,8 @@ void setup()
 
 void loop()
 {
+  unsigned long currentMillis = millis();
+
   // if there are incoming bytes available
   // from the server, read them and print them
   while (client.available()) {
@@ -65,25 +79,44 @@ void loop()
     Serial.write(c);
   }
 
-  // if the server's disconnected, stop the client
-  if (!client.connected()) {
-    Serial.println();
-    Serial.println("Disconnecting from server...");
-    client.stop();
+  pirSensorRead = digitalRead(pirPin);
 
-    // do nothing forevermore
-    while (true);
-  }
+  if (pirSensorRead == HIGH) {
+    digitalWrite(ledPin, HIGH);
+    delay(150);
 
-  if (cnt<30000) {
-    if (cnt%10 == 0) {
-      Serial.write(cnt);
-    }
-    if (cnt==3000)  {
+    if (motionState == false){
+      Serial.println("Motion Detected! Sending POST message to Control Hub.");
       sendTestPostMessage();
+      motionState = true;
     }
   }
-  cnt++;
+  else {
+    digitalWrite(ledPin, LOW); // Turn off the on-board LED.
+    delay(150);
+    // Change the motion state to false (no motion):
+    if (motionState == true) {
+      Serial.println("Motion ended!");
+      motionState = false;
+    }
+  }  
+
+  
+//  if (currentMillis - previousMillis > interval){
+//    previousMillis = currentMillis;
+//    
+//  }
+//  
+//  // if the server's disconnected, stop the client
+//  if (!client.connected()) {
+//    Serial.println();
+//    Serial.println("Disconnecting from server...");
+//    client.stop();
+//
+//    // do nothing forevermore
+//    while (true);
+//  }
+  
 }
 
 
