@@ -15,35 +15,46 @@ class TaskManager(threading.Thread):
         self.state_manager = sm
 
     ### TASK HANDLER ###################################################################################################
-    def device_register_request(self, message):
-        print("[TASK MANAGER] REGISTER MESSAGE RECEIVED - ")
+    def device_register_request_task(self, message):
+        print("[TASK MANAGER] REGISTER MESSAGE RECEIVED.")
         self.state_manager.add_new_device(message.data["device_type"], message.data["device_id"], message.address)
-        #start here
 
-    def device_deregister_request(self, message):
-        print("[TASK MANAGER] DEREGISTER MESSAGE RECEIVED - ")
+    def device_deregister_request_task(self, message):
+        print("[TASK MANAGER] DEREGISTER MESSAGE RECEIVED.")
         # self.state_manager.add_new_device(message.data["device_id"])
 
-    def arm_request(self, message):
-        print("[TASK MANAGER] SINGLE DEVICE ARM REQUEST MESSAGE RECEIVED - ")
+    def arm_request_task(self, message):
+        print("[TASK MANAGER] SINGLE DEVICE ARM REQUEST MESSAGE RECEIVED.")
         # self.state_manager.add_new_device(message.data["device_id"])
 
-    def disarm_request(self, message):
-        print("[TASK MANAGER] SINGLE DEVICE DISARM REQUEST MESSAGE RECEIVED - ")
+    def disarm_request_task(self, message):
+        print("[TASK MANAGER] SINGLE DEVICE DISARM REQUEST MESSAGE RECEIVED.")
         # self.state_manager.add_new_device(message.data["device_id"])
 
-    def all_arm_request(self, message):
-        print("[TASK MANAGER] ALL ARM REQUEST MESSAGE RECEIVED - ")
+    def all_arm_request_task(self, message):
+        print("[TASK MANAGER] ALL ARM REQUEST MESSAGE RECEIVED.")
 
-    def all_disarm_request(self, message):
-        print("[TASK MANAGER] ALL DISARM REQUEST MESSAGE RECEIVED - ")
+    def all_disarm_request_task(self, message):
+        print("[TASK MANAGER] ALL DISARM REQUEST MESSAGE RECEIVED.")
 
-    def status_check_manual_request(self, message):
-        print("[TASK MANAGER] SINGLE DEVICE STATUS CHECK REQUEST MESSAGE RECEIVED - ")
+    def status_check_manual_request_task(self, message):
+        print("[TASK MANAGER] SINGLE DEVICE STATUS CHECK REQUEST MESSAGE RECEIVED.")
         # self.state_manager.add_new_device(message.data["device_id"])
 
-    def all_device_status_check_manual_request(self, message):
-        print("[TASK MANAGER] SINGLE DEVICE STATUS CHECK REQUEST MESSAGE RECEIVED - ")
+    def all_device_status_check_manual_request_task(self, message):
+        print("[TASK MANAGER] ALL DEVICE STATUS CHECK REQUEST MESSAGE RECEIVED.")
+        # self.state_manager.add_new_device(message.data["device_id"])
+
+    def periodic_status_check_request_task(self):
+        print("[TASK MANAGER] PERIODIC STATUS CHECK")
+        # self.state_manager.add_new_device(message.data["device_id"])
+
+    def alert_message_task(self, message):
+        print("[TASK MANAGER] ALERT MESSAGE RECEIVED.")
+        # self.state_manager.add_new_device(message.data["device_id"])
+
+    def buzzer_off_request_task(self):
+        print("[TASK MANAGER] BUZZER OFF REQUEST RECEIVED.")
         # self.state_manager.add_new_device(message.data["device_id"])
     ####################################################################################################################
 
