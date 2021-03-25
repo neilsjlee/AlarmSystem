@@ -85,6 +85,11 @@ class StateManager(threading.Thread):
             if each_device.device_id == target_device_id:
                 self.devices_list.remove(each_device)
 
+    def get_ip_address_by_device_id(self, did):
+        for each_device in self.devices_list:
+            if did == each_device.device_id:
+                return each_device.device_ip
+
 
 class Sensor:
     # 'device_id' = Each device should have a unique ID from product line.

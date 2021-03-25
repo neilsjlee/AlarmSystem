@@ -3,7 +3,9 @@ from test_python_server import *
 from task_manager import *
 from state_manager import *
 import json
+import socket
 import os
+
 
 # main.py should state
 # - Setup Wi-Fi connection
@@ -40,6 +42,7 @@ def load_previous_setting():
 
 
 def rpi_wifi_setting(ssid, pw):
+    # Setting up Wi-Fi for Raspberry Pi
     with open(WPA_SUPPLICANT_CONF_FILE_PATH, 'w') as wpa_supplicant_file:
         wpa_supplicant_file.writelines(["ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\n",
                                         "update_config=1\n",
@@ -57,6 +60,19 @@ def get_setting_info_from_nfc():
     return
 
 
+def check_internet_connection():
+    return
+
+
+def get_my_ip_addresses():
+    public_ip= requests.get('https://api.ipify.org').text
+    print("My Public IP is ", public_ip)
+
+    hostname = socket.gethostname()
+    private_ip = socket.gethostbyname(hostname)
+    print("My Private IP is ", private_ip)
+
+
 if __name__ == "__main__":
     load_previous_setting()
 
@@ -66,7 +82,7 @@ if __name__ == "__main__":
             new_setting = {"wifi_ssid": wifi_ssid, "wifi_pw": wifi_pw, "mobile_app_private_ip": mobile_app_private_ip}
             json.dump(new_setting, opened_system_setting_file)
 
-
+    get_my_ip_addresses()
 
     # Start HTTP Server
     server_thread = threading.Thread(target=run_server)

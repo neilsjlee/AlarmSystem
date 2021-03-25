@@ -14,7 +14,7 @@ class TaskManager(threading.Thread):
     def get_state_manager(self, sm):
         self.state_manager = sm
 
-    ### TASK HANDLER ###################################################################################################
+    # -- TASK HANDLER --------------------------------------------------------------------------------------------------
     def device_register_request_task(self, message):
         print("[TASK MANAGER] REGISTER MESSAGE RECEIVED.")
         self.state_manager.add_new_device(message.data["device_type"], message.data["device_id"], message.address)
@@ -56,12 +56,12 @@ class TaskManager(threading.Thread):
     def buzzer_off_request_task(self):
         print("[TASK MANAGER] BUZZER OFF REQUEST RECEIVED.")
         # self.state_manager.add_new_device(message.data["device_id"])
-    ####################################################################################################################
+    # ------------------------------------------------------------------------------------------------------------------
 
     def pop_server_queue(self):
         received_message = self.server_q.get()
         if received_message.uri == 'register':
-            self.device_register_request(received_message)
+            self.device_register_request_task(received_message)
         print("Priority Level: ", received_message.priority, ", Time: ", received_message.timestamp, ", Sender: ", received_message.address, ", Data: ", received_message.data)
 
     def pause(self):

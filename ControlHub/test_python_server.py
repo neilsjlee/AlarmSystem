@@ -1,9 +1,11 @@
 from flask import Flask, request, jsonify
 from queue import PriorityQueue
 import time
+import json
+import requests
 
 # Server receives HTTP requests from Mobile App or Sensors and transfers the requests to TaskManager.
-# Each type of requests should have priority level, so that TaskManager can run higher priority tasks faster than lower priority tasks.
+# Each type of requests should have priority level, so that TaskManager can process higher priority tasks faster than lower priority tasks.
 
 
 server_queue = PriorityQueue()
@@ -26,6 +28,14 @@ def alert():
     data = request.get_json()
     server_queue.put(ReceivedRequest('alert', 1, time.time(), request.remote_addr, data))
     return jsonify(data)
+
+
+@server.route('/current_status', methods=['GET'])
+def current_status():
+    with open("./system_current_status.json", 'r') as most_recent_status:
+        json_data = json.load(most_recent_status)
+        print("AAAAA:", json_data)
+        return json_data
 
 
 def run_server():
