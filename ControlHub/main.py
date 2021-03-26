@@ -7,10 +7,14 @@ import socket
 import os
 
 
+task_queue = PriorityQueue()
+
+
 # main.py should state
 # - Setup Wi-Fi connection
 # - System restart process
 # -
+
 
 wifi_ssid = ""
 wifi_pw = ""
@@ -86,17 +90,18 @@ if __name__ == "__main__":
 
     # Start HTTP Server
     server_thread = threading.Thread(target=run_server)
+    get_task_queue(task_queue)
     server_thread.start()
 
     dummy_function_thread = threading.Thread(target=dummy_function)
     dummy_function_thread.start()
 
     # Start "Task Manager"
-    task_manager = TaskManager(server_queue)
+    task_manager = TaskManager(task_queue)
     task_manager.start()
 
     # Start "State Manager"
-    state_manager = StateManager(server_queue, task_manager)
+    state_manager = StateManager(task_queue, task_manager)
     state_manager.start()
 
     # Pass 'State Manager' instance to Task Manager

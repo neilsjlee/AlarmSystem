@@ -5,9 +5,9 @@ import time
 class TaskManager(threading.Thread):
     # When the server receives TaskManager
 
-    def __init__(self, server_queue):
+    def __init__(self, task_q):
         threading.Thread.__init__(self)
-        self.server_q = server_queue
+        self.task_queue = task_q
         self.run_task_switch = False       # Switch variable to pause/resume tasks
         self.state_manager = None
 
@@ -21,7 +21,8 @@ class TaskManager(threading.Thread):
 
     def device_deregister_request_task(self, message):
         print("[TASK MANAGER] DEREGISTER MESSAGE RECEIVED.")
-        # self.state_manager.add_new_device(message.data["device_id"])
+        self.state_manager.remove_device(message.data["device_id"])
+        # Need to send deregister request to the device as well
 
     def arm_request_task(self, message):
         print("[TASK MANAGER] SINGLE DEVICE ARM REQUEST MESSAGE RECEIVED.")
@@ -39,6 +40,7 @@ class TaskManager(threading.Thread):
 
     def status_check_manual_request_task(self, message):
         print("[TASK MANAGER] SINGLE DEVICE STATUS CHECK REQUEST MESSAGE RECEIVED.")
+        self.state_manager.get_ip_address_by_device_id(message.data["device_id"])
         # self.state_manager.add_new_device(message.data["device_id"])
 
     def all_device_status_check_manual_request_task(self, message):
@@ -59,9 +61,13 @@ class TaskManager(threading.Thread):
     # ------------------------------------------------------------------------------------------------------------------
 
     def pop_server_queue(self):
-        received_message = self.server_q.get()
+        received_message = self.task_queue.get()
         if received_message.uri == 'register':
             self.device_register_request_task(received_message)
+        elif received_message.uri == 'scr_manual_single':
+            self.status_check_manual_request_task(received_message)
+        elif received_message.uri == 'deregister':
+            self.device_deregister_request_task(received_message)
         print("Priority Level: ", received_message.priority, ", Time: ", received_message.timestamp, ", Sender: ", received_message.address, ", Data: ", received_message.data)
 
     def pause(self):

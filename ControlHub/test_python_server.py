@@ -8,7 +8,7 @@ import requests
 # Each type of requests should have priority level, so that TaskManager can process higher priority tasks faster than lower priority tasks.
 
 
-server_queue = PriorityQueue()
+task_queue_handler = None
 
 server = Flask(__name__)
 
@@ -18,7 +18,14 @@ server = Flask(__name__)
 @server.route('/register', methods=['POST'])
 def register():
     data = request.get_json()
-    server_queue.put(ReceivedRequest('register', 5, time.time(), request.remote_addr, data))
+    task_queue_handler.put(ReceivedRequest('register', 5, time.ctime(), request.remote_addr, data))
+    return jsonify(data)
+
+
+@server.route('/deregister', methods=['POST'])
+def deregister():
+    data = request.get_json()
+    task_queue_handler.put(ReceivedRequest('deregister', 5, time.ctime(), request.remote_addr, data))
     return jsonify(data)
 
 
@@ -26,7 +33,7 @@ def register():
 @server.route('/alert', methods=['POST'])
 def alert():
     data = request.get_json()
-    server_queue.put(ReceivedRequest('alert', 1, time.time(), request.remote_addr, data))
+    task_queue_handler.put(ReceivedRequest('alert', 1, time.ctime(), request.remote_addr, data))
     return jsonify(data)
 
 
@@ -38,9 +45,21 @@ def current_status():
         return json_data
 
 
+@server.route('/scr_manual_single', methods=['POST'])
+def scr_manual_single():
+    data = request.get_json()
+    task_queue_handler.put(ReceivedRequest('scr_manual_single', 3, time.ctime(), request.remote_addr, data))
+    return jsonify(data)
+
+
 def run_server():
     print("Start Server")
     server.run(host='0.0.0.0', port=2002)
+
+
+def get_task_queue(task_q):
+    global task_queue_handler
+    task_queue_handler = task_q
 
 
 class ReceivedRequest:
