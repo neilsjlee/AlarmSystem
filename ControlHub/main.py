@@ -4,9 +4,13 @@ from task_manager import *
 from state_manager import *
 import json
 import socket
+from queue import PriorityQueue
+import requests
+from priority_queue import *
 import os
 
 
+task_queue = MyPriorityQueue()
 task_queue = PriorityQueue()
 
 
@@ -32,9 +36,9 @@ system_setting_file_path = "./system_setting.json"
 
 def load_previous_setting():
     try:
-        with open(system_setting_file_path, 'r') as opened_system_setting_file:
+        with open(system_setting_file_path, 'r') as __opened_system_setting_file:
             try:
-                setting_json = json.load(opened_system_setting_file)
+                setting_json = json.load(__opened_system_setting_file)
                 print(setting_json)
                 global wifi_ssid, wifi_pw
                 wifi_ssid = setting_json['wifi_ssid']

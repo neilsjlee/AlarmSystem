@@ -1,8 +1,7 @@
 from flask import Flask, request, jsonify
-from queue import PriorityQueue
 import time
 import json
-import requests
+
 
 # Server receives HTTP requests from Mobile App or Sensors and transfers the requests to TaskManager.
 # Each type of requests should have priority level, so that TaskManager can process higher priority tasks faster than lower priority tasks.
