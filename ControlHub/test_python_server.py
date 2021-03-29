@@ -8,6 +8,7 @@ import json
 
 
 task_queue_handler = None
+mqtt_publisher = None
 
 server = Flask(__name__)
 
@@ -17,37 +18,45 @@ server = Flask(__name__)
 @server.route('/register', methods=['POST'])
 def register():
     data = request.get_json()
-    task_queue_handler.put(ReceivedRequest('register', 5, time.ctime(), request.remote_addr, data))
+    task_queue_handler.put('register', 5, time.ctime(), request.remote_addr, data)
     return jsonify(data)
 
 
 @server.route('/deregister', methods=['POST'])
 def deregister():
     data = request.get_json()
-    task_queue_handler.put(ReceivedRequest('deregister', 5, time.ctime(), request.remote_addr, data))
+    task_queue_handler.put('deregister', 5, time.ctime(), request.remote_addr, data)
     return jsonify(data)
 
 
 # '/alert': Sensors should send "Alert" message to this URI
 @server.route('/alert', methods=['POST'])
 def alert():
+    # ALERT MESSAGE RECEIVED.
+    # Alert message does not go into task queue.
+    # The server thread handles the alert by itself right away.
+    print("Alert received")
     data = request.get_json()
-    task_queue_handler.put(ReceivedRequest('alert', 1, time.ctime(), request.remote_addr, data))
+    print("{\"message_type\":\"alert\",\"device_id\":\"", data['device_id'], "\"}")
+    mqtt_publisher.publish_message("{\"message_type\":\"alert\",\"device_id\":\""+data['device_id']+"\"}")
     return jsonify(data)
 
 
 @server.route('/current_status', methods=['GET'])
 def current_status():
     with open("./system_current_status.json", 'r') as most_recent_status:
-        json_data = json.load(most_recent_status)
-        print("AAAAA:", json_data)
-        return json_data
+        try:
+            json_data = json.load(most_recent_status)
+            print("AAAAA:", json_data)
+            return json_data
+        except:
+            return ""
 
 
 @server.route('/scr_manual_single', methods=['POST'])
 def scr_manual_single():
     data = request.get_json()
-    task_queue_handler.put(ReceivedRequest('scr_manual_single', 3, time.ctime(), request.remote_addr, data))
+    task_queue_handler.put('scr_manual_single', 3, time.ctime(), request.remote_addr, data)
     return jsonify(data)
 
 
@@ -59,6 +68,11 @@ def run_server():
 def get_task_queue(task_q):
     global task_queue_handler
     task_queue_handler = task_q
+
+
+def get_mqtt_publisher(mqtt_p):
+    global mqtt_publisher
+    mqtt_publisher = mqtt_p
 
 
 class ReceivedRequest:

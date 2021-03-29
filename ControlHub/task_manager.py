@@ -8,11 +8,15 @@ class TaskManager(threading.Thread):
     def __init__(self, task_q):
         threading.Thread.__init__(self)
         self.task_queue = task_q
-        self.run_task_switch = False       # Switch variable to pause/resume tasks
+        self.run_task_switch = True       # Switch variable to pause/resume tasks
         self.state_manager = None
+        self.mqtt_publisher = None
 
     def get_state_manager(self, sm):
         self.state_manager = sm
+
+    def get_mqtt_publisher(self, mp):
+        self.mqtt_publisher = mp
 
     # -- TASK HANDLER --------------------------------------------------------------------------------------------------
     def device_register_request_task(self, message):
@@ -21,8 +25,17 @@ class TaskManager(threading.Thread):
 
     def device_deregister_request_task(self, message):
         print("[TASK MANAGER] DEREGISTER MESSAGE RECEIVED.")
-        self.state_manager.remove_device(message.data["device_id"])
+        is_error = False
+        try:
+            self.state_manager.remove_device(message.data["device_id"])
+        except:
+            print("no_proper_key")
+            is_error = True
         # Need to send deregister request to the device as well
+        if is_error == False:
+            self.mqtt_publisher.publish_message("ack")
+        else:
+            self.mqtt_publisher.publish_message("nack")
 
     def arm_request_task(self, message):
         print("[TASK MANAGER] SINGLE DEVICE ARM REQUEST MESSAGE RECEIVED.")
@@ -61,14 +74,15 @@ class TaskManager(threading.Thread):
     # ------------------------------------------------------------------------------------------------------------------
 
     def pop_server_queue(self):
-        received_message = self.task_queue.get()
-        if received_message.uri == 'register':
-            self.device_register_request_task(received_message)
-        elif received_message.uri == 'scr_manual_single':
-            self.status_check_manual_request_task(received_message)
-        elif received_message.uri == 'deregister':
-            self.device_deregister_request_task(received_message)
-        print("Priority Level: ", received_message.priority, ", Time: ", received_message.timestamp, ", Sender: ", received_message.address, ", Data: ", received_message.data)
+        if self.task_queue.length() > 0:
+            received_message = self.task_queue.get()
+            if received_message.task_type == 'register':
+                self.device_register_request_task(received_message)
+            elif received_message.task_type == 'scr_manual_single':
+                self.status_check_manual_request_task(received_message)
+            elif received_message.task_type == 'deregister':
+                self.device_deregister_request_task(received_message)
+            print("Priority Level: ", received_message.priority, ", Time: ", received_message.timestamp, ", Sender: ", received_message.address, ", Data: ", received_message.data)
 
     def pause(self):
         self.run_task_switch = False
