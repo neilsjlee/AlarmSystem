@@ -4,13 +4,17 @@ import json
 
 
 # Server receives HTTP requests from Mobile App or Sensors and transfers the requests to TaskManager.
-# Each type of requests should have priority level, so that TaskManager can process higher priority tasks faster than lower priority tasks.
+# Each type of requests should have priority level,
+# so that TaskManager can process higher priority tasks faster than lower priority tasks.
 
 
 task_queue_handler = None
+outgoing_mailbox_handler = None
 mqtt_publisher = None
 
 server = Flask(__name__)
+
+MAX_BUFFER_SIZE = 100
 
 
 # '/register': Sensors should send Register request to this URI
@@ -18,14 +22,14 @@ server = Flask(__name__)
 @server.route('/register', methods=['POST'])
 def register():
     data = request.get_json()
-    task_queue_handler.put('register', 5, time.ctime(), request.remote_addr, data)
+    push_task_queue('register', 5, time.ctime(), request.remote_addr, data)
     return jsonify(data)
 
 
 @server.route('/deregister', methods=['POST'])
 def deregister():
     data = request.get_json()
-    task_queue_handler.put('deregister', 5, time.ctime(), request.remote_addr, data)
+    push_task_queue('deregister', 5, time.ctime(), request.remote_addr, data)
     return jsonify(data)
 
 
@@ -48,7 +52,7 @@ def current_status():
         try:
             json_data = json.load(most_recent_status)
             print("AAAAA:", json_data)
-            return json_data
+            return jsonify(json_data)
         except:
             return ""
 
@@ -56,7 +60,7 @@ def current_status():
 @server.route('/scr_manual_single', methods=['POST'])
 def scr_manual_single():
     data = request.get_json()
-    task_queue_handler.put('scr_manual_single', 3, time.ctime(), request.remote_addr, data)
+    push_task_queue('scr_manual_single', 3, time.ctime(), request.remote_addr, data)
     return jsonify(data)
 
 
@@ -70,9 +74,18 @@ def get_task_queue(task_q):
     task_queue_handler = task_q
 
 
+def get_outgoing_mailbox(om):
+    global outgoing_mailbox_handler
+    outgoing_mailbox_handler = om
+
+
 def get_mqtt_publisher(mqtt_p):
     global mqtt_publisher
     mqtt_publisher = mqtt_p
+
+
+def push_task_queue(arg1, arg2, arg3, arg4, arg5):
+    task_queue_handler.put(arg1, arg2, arg3, arg4, arg5)
 
 
 class ReceivedRequest:
@@ -85,5 +98,6 @@ class ReceivedRequest:
 
     def __lt__(self, other):
         return self.priority < other.priority
+
 
 

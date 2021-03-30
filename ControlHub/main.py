@@ -7,14 +7,10 @@ import json
 import requests
 from priority_queue import *
 from mqtt_publisher import MqttPublisher
+from outgoing_mailbox import *
 import socket
 import os
 import sys
-
-
-task_queue = MyPriorityQueue()
-# task_queue = PriorityQueue()
-
 
 # main.py should state
 # - Setup Wi-Fi connection
@@ -22,6 +18,11 @@ task_queue = MyPriorityQueue()
 # -
 
 
+# Shared Resources
+task_queue = MyPriorityQueue()
+outgoing_mailbox = OutgoingMailbox()
+
+# Global Variables
 wifi_ssid = ""
 wifi_pw = ""
 
@@ -30,15 +31,15 @@ mobile_app_private_ip = ""
 private_ip = ""
 public_ip = ""
 
+# FILE PATHS
+    # WPA_SUPPLICANT_CONF_FILE_PATH = "./wpa_supplicant.conf" # Test Purpose
 WPA_SUPPLICANT_CONF_FILE_PATH = "/etc/wpa_supplicant/wpa_supplicant.conf"
-# WPA_SUPPLICANT_CONF_FILE_PATH = "./wpa_supplicant.conf" # Test Purpose
-
-system_setting_file_path = "./system_setting.json"
+SYSTEM_SETTIGN_FILE_PATH = "./system_setting.json"
 
 
 def load_previous_setting():
     try:
-        with open(system_setting_file_path, 'r') as __opened_system_setting_file:
+        with open(SYSTEM_SETTIGN_FILE_PATH, 'r') as __opened_system_setting_file:
             try:
                 setting_json = json.load(__opened_system_setting_file)
                 print(setting_json)
@@ -145,28 +146,31 @@ def init():
     # Start HTTP Server
     server_thread = threading.Thread(target=run_server)
     get_task_queue(task_queue)
+    get_outgoing_mailbox(outgoing_mailbox)
     server_thread.start()
 
     dummy_function_thread = threading.Thread(target=dummy_function)
     dummy_function_thread.start()
 
     # Start "Task Manager"
-    task_manager = TaskManager(task_queue)
+    task_manager = TaskManager(task_queue, outgoing_mailbox)
     task_manager.start()
 
     # Start "State Manager"
     state_manager = StateManager(task_queue, task_manager)
-    state_manager.start()
 
     # Pass 'State Manager' instance to Task Manager
     task_manager.get_state_manager(state_manager)
 
     # Start "MQTT Publisher"
     mqtt_publisher = MqttPublisher()
+    mqtt_publisher.update_broker_ip(private_ip)
 
     # Pass 'MQTT Publisher' instance to Task Manager & Server
     task_manager.get_mqtt_publisher(mqtt_publisher)
     get_mqtt_publisher(mqtt_publisher)
+
+    #
 
 
 if __name__ == "__main__":
@@ -176,10 +180,11 @@ if __name__ == "__main__":
         if wifi_ssid == "": # If there's no previous setting exist,
             get_setting_info_from_nfc()
             rpi_wifi_setting()
+            time.sleep(5)
             get_my_ip_addresses()
             send_ack_and_setting_socket()
 
-            with open(system_setting_file_path, 'w') as opened_system_setting_file:
+            with open(SYSTEM_SETTIGN_FILE_PATH, 'w') as opened_system_setting_file:
                 new_setting = {"wifi_ssid": wifi_ssid, "wifi_pw": wifi_pw, "mobile_app_private_ip": mobile_app_private_ip}
                 json.dump(new_setting, opened_system_setting_file)
         elif wifi_ssid != "":

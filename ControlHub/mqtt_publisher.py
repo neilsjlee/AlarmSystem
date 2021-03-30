@@ -4,6 +4,10 @@ import paho.mqtt.client as mqtt
 class MqttPublisher:
     def __init__(self):
         self.mqtt = mqtt.Client("system_pub")
+        self.broker_ip = ""
+
+    def update_broker_ip(self, new_ip):
+        self.broker_ip = new_ip
 
     def publish_message(self, data):
         self.mqtt.connect("192.168.1.195", 2005)

@@ -1,14 +1,16 @@
 # Implementing Priority Queue using List data type
 
-import copy
+import threading
 
 
 class MyPriorityQueue:
     def __init__(self):
         self.queue_list = []
         self.queue_size = 0
+        self.lock = threading.Lock()
 
     def put(self, task_type, priority, timestamp, address, data):
+        self.p()
         i = 0
         found_the_right_place = False
         current_queue_size = len(self.queue_list)
@@ -22,16 +24,25 @@ class MyPriorityQueue:
         else:
             self.queue_list.append(QueueTask(task_type, priority, timestamp, address, data))
         self.queue_size = self.queue_size + 1
+        self.v()
 
     def get(self):
+        self.p()
         if len(self.queue_list) > 0:
             first_item = self.queue_list[0]
             self.queue_list.pop(0)
             self.queue_size = self.queue_size - 1
             return first_item
+        self.v()
 
     def length(self):
         return self.queue_size
+
+    def p(self):
+        self.lock.acquire()
+
+    def v(self):
+        self.lock.release()
 
 
 class QueueTask:
@@ -41,3 +52,4 @@ class QueueTask:
         self.timestamp = timestamp
         self.address = address
         self.data = data
+

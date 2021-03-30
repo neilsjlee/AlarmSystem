@@ -5,9 +5,10 @@ import time
 class TaskManager(threading.Thread):
     # When the server receives TaskManager
 
-    def __init__(self, task_q):
+    def __init__(self, task_q, outgoing_mbox):
         threading.Thread.__init__(self)
         self.task_queue = task_q
+        self.outgoing_mailbox = outgoing_mbox
         self.run_task_switch = True       # Switch variable to pause/resume tasks
         self.state_manager = None
         self.mqtt_publisher = None
@@ -21,7 +22,7 @@ class TaskManager(threading.Thread):
     # -- TASK HANDLER --------------------------------------------------------------------------------------------------
     def device_register_request_task(self, message):
         print("[TASK MANAGER] REGISTER MESSAGE RECEIVED.")
-        self.state_manager.add_new_device(message.data["device_type"], message.data["device_id"], message.address)
+        self.state_manager.add_new_device(message.data["device_type"], message.data["device_id"], message.data["ip"])
 
     def device_deregister_request_task(self, message):
         print("[TASK MANAGER] DEREGISTER MESSAGE RECEIVED.")
@@ -73,7 +74,7 @@ class TaskManager(threading.Thread):
         # self.state_manager.add_new_device(message.data["device_id"])
     # ------------------------------------------------------------------------------------------------------------------
 
-    def pop_server_queue(self):
+    def pop_task_queue(self):
         if self.task_queue.length() > 0:
             received_message = self.task_queue.get()
             if received_message.task_type == 'register':
@@ -96,7 +97,7 @@ class TaskManager(threading.Thread):
 
         while(True):
             if self.run_task_switch:
-                self.pop_server_queue()
+                self.pop_task_queue()
 
             time.sleep(0.01)
 

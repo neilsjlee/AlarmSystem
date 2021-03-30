@@ -9,11 +9,10 @@ import json
 system_status_file_path = "./system_current_status.json"
 
 
-class StateManager(threading.Thread):
+class StateManager:
     # StateManager stores current status of the system
 
     def __init__(self, server_queue, task_manager):
-        threading.Thread.__init__(self)
         self.server_queue = server_queue
         self.tm = task_manager
         self.devices_list_json = {}
@@ -28,19 +27,6 @@ class StateManager(threading.Thread):
         except:
             with open(system_status_file_path, "w") as read_file:
                 print("New 'system_current_status.json' file created")
-
-    def run(self):
-        print("[StateManager]: Type 'P' to pause / Type 'R' to resume")
-        while (True):
-            a = input()
-            if a == "R":
-                self.tm.resume()
-                print("[StateManager]: R", self.tm.run_task_switch)
-            if a == "P":
-                self.tm.pause()
-                print("[StateManager]: P", self.tm.run_task_switch)
-
-            time.sleep(0.1)
 
     def restore_devices_from_saved_file(self, saved_data):
         for each in saved_data['devices']:
