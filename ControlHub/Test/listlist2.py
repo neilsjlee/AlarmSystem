@@ -20,9 +20,11 @@ testlist[5].remove("task_b")
 
 print("3:\n\t", testlist)
 
+testlist[6] = ["task_c", "task_d"]
+
+print("3:\n\t", testlist)
 
 j = 0
-
 while testlist[j] == []:
     j = j + 1
 

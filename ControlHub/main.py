@@ -1,16 +1,17 @@
 from test_extra_thread import *
-from test_python_server import *
+from http_server import *
 from task_manager import *
 from state_manager import *
 import json
-# from queue import PriorityQueue
 import requests
 from priority_queue import *
 from mqtt_publisher import MqttPublisher
 from outgoing_mailbox import *
+from message_sender import *
 import socket
 import os
 import sys
+# from queue import PriorityQueue
 
 # main.py should state
 # - Setup Wi-Fi connection
@@ -32,7 +33,7 @@ private_ip = ""
 public_ip = ""
 
 # FILE PATHS
-    # WPA_SUPPLICANT_CONF_FILE_PATH = "./wpa_supplicant.conf" # Test Purpose
+# WPA_SUPPLICANT_CONF_FILE_PATH = "./wpa_supplicant.conf" # Test Purpose
 WPA_SUPPLICANT_CONF_FILE_PATH = "/etc/wpa_supplicant/wpa_supplicant.conf"
 SYSTEM_SETTIGN_FILE_PATH = "./system_setting.json"
 
@@ -132,9 +133,6 @@ def get_my_ip_addresses():
     public_ip = requests.get('https://api.ipify.org').text
     print("My Public IP is ", public_ip)
 
-    # hostname = socket.gethostname()
-    # private_ip = socket.gethostbyname(hostname)
-    # Lines above did not work on a Raspberry Pi.
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # 3
     s.connect(('8.8.8.8', 0))
     private_ip = s.getsockname()[0]
@@ -154,13 +152,13 @@ def init():
 
     # Start "Task Manager"
     task_manager = TaskManager(task_queue, outgoing_mailbox)
-    task_manager.start()
 
     # Start "State Manager"
     state_manager = StateManager(task_queue, task_manager)
 
     # Pass 'State Manager' instance to Task Manager
     task_manager.get_state_manager(state_manager)
+    task_manager.start()
 
     # Start "MQTT Publisher"
     mqtt_publisher = MqttPublisher()
@@ -170,7 +168,14 @@ def init():
     task_manager.get_mqtt_publisher(mqtt_publisher)
     get_mqtt_publisher(mqtt_publisher)
 
+    # MessageSender
+    message_sender = MessageSender()
+    message_sender.get_outgoing_mailbox(outgoing_mailbox)
+    message_sender.get_state_manager(state_manager)
+    message_sender.start()
+
     #
+    print(outgoing_mailbox.list)
 
 
 if __name__ == "__main__":
@@ -198,10 +203,4 @@ if __name__ == "__main__":
     get_my_ip_addresses()
 
     init()
-
-
-
-
-
-
 

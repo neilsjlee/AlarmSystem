@@ -10,7 +10,7 @@ class MqttPublisher:
         self.broker_ip = new_ip
 
     def publish_message(self, data):
-        self.mqtt.connect("192.168.1.195", 2005)
+        self.mqtt.connect(self.broker_ip, 2005)
         self.mqtt.publish("system_to_mobile_app", data)
         print("mqtt 1")
         self.mqtt.loop(1)

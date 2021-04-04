@@ -12,6 +12,8 @@ class TaskManager(threading.Thread):
         self.run_task_switch = True       # Switch variable to pause/resume tasks
         self.state_manager = None
         self.mqtt_publisher = None
+        self.background_go_flag = True
+        self.last_run_time = time.ctime()
 
     def get_state_manager(self, sm):
         self.state_manager = sm
@@ -28,29 +30,45 @@ class TaskManager(threading.Thread):
         print("[TASK MANAGER] DEREGISTER MESSAGE RECEIVED.")
         is_error = False
         try:
-            self.state_manager.remove_device(message.data["device_id"])
+            target_device_ip = self.state_manager.remove_device(message.data["device_id"])
         except:
             print("no_proper_key")
             is_error = True
-        # Need to send deregister request to the device as well
         if is_error == False:
-            self.mqtt_publisher.publish_message("ack")
-        else:
-            self.mqtt_publisher.publish_message("nack")
+            outgoing_message = ["{\"message_type\":\"deregister\",\"device_ip\":\""+target_device_ip+"\"}"]
+            self.outgoing_mailbox.put(message.address, outgoing_message)
 
     def arm_request_task(self, message):
         print("[TASK MANAGER] SINGLE DEVICE ARM REQUEST MESSAGE RECEIVED.")
-        # self.state_manager.add_new_device(message.data["device_id"])
+        did = message.data["device_id"]
+        outgoing_message = ["{\"message_type\":\"arm\",\"device_ip\":\"" + self.state_manager.get_ip_address_by_device_id(did) + "\"}"]
+        self.outgoing_mailbox.put(message.address, outgoing_message)
+        # self.state_manager.devices_list_json[did]['armed'] = True
 
     def disarm_request_task(self, message):
         print("[TASK MANAGER] SINGLE DEVICE DISARM REQUEST MESSAGE RECEIVED.")
-        # self.state_manager.add_new_device(message.data["device_id"])
+        did = message.data["device_id"]
+        outgoing_message = ["{\"message_type\":\"disarm\",\"device_ip\":\"" + self.state_manager.get_ip_address_by_device_id(did) + "\"}"]
+        self.outgoing_mailbox.put(message.address, outgoing_message)
+        # self.state_manager.devices_list_json[did]['armed'] = True
 
     def all_arm_request_task(self, message):
         print("[TASK MANAGER] ALL ARM REQUEST MESSAGE RECEIVED.")
+        outgoing_messages = []
+        all_ip_addresses = self.state_manager.get_all_ip_addresses()
+        if len(all_ip_addresses) != 0:
+            for a in all_ip_addresses:
+                outgoing_messages.append("{\"message_type\":\"arm\",\"device_ip\":\"" + a + "\"}")
+            self.outgoing_mailbox.put(message.address, outgoing_messages)
 
     def all_disarm_request_task(self, message):
         print("[TASK MANAGER] ALL DISARM REQUEST MESSAGE RECEIVED.")
+        outgoing_messages = []
+        all_ip_addresses = self.state_manager.get_all_ip_addresses()
+        if len(all_ip_addresses) != 0:
+            for a in all_ip_addresses:
+                outgoing_messages.append("{\"message_type\":\"disarm\",\"device_ip\":\"" + a + "\"}")
+            self.outgoing_mailbox.put(message.address, outgoing_messages)
 
     def status_check_manual_request_task(self, message):
         print("[TASK MANAGER] SINGLE DEVICE STATUS CHECK REQUEST MESSAGE RECEIVED.")
@@ -64,26 +82,34 @@ class TaskManager(threading.Thread):
     def periodic_status_check_request_task(self):
         print("[TASK MANAGER] PERIODIC STATUS CHECK")
         # self.state_manager.add_new_device(message.data["device_id"])
-
-    def alert_message_task(self, message):
-        print("[TASK MANAGER] ALERT MESSAGE RECEIVED.")
-        # self.state_manager.add_new_device(message.data["device_id"])
-
-    def buzzer_off_request_task(self):
-        print("[TASK MANAGER] BUZZER OFF REQUEST RECEIVED.")
-        # self.state_manager.add_new_device(message.data["device_id"])
     # ------------------------------------------------------------------------------------------------------------------
 
     def pop_task_queue(self):
         if self.task_queue.length() > 0:
-            received_message = self.task_queue.get()
-            if received_message.task_type == 'register':
-                self.device_register_request_task(received_message)
-            elif received_message.task_type == 'scr_manual_single':
-                self.status_check_manual_request_task(received_message)
-            elif received_message.task_type == 'deregister':
-                self.device_deregister_request_task(received_message)
-            print("Priority Level: ", received_message.priority, ", Time: ", received_message.timestamp, ", Sender: ", received_message.address, ", Data: ", received_message.data)
+            new_task = self.task_queue.get()
+            if new_task.task_type == 'register':
+                self.device_register_request_task(new_task)
+            elif new_task.task_type == 'scr_manual_single':
+                self.status_check_manual_request_task(new_task)
+            elif new_task.task_type == 'deregister':
+                self.device_deregister_request_task(new_task)
+            elif new_task.task_type == 'arm_request_single':
+                self.arm_request_task(new_task)
+            elif new_task.task_type == 'disarm_request_single':
+                self.disarm_request_task(new_task)
+            elif new_task.task_type == 'arm_request_all':
+                self.all_arm_request_task(new_task)
+            elif new_task.task_type == 'disarm_request_all':
+                self.all_disarm_request_task(new_task)
+            print("Priority Level: ", new_task.priority, ", Time: ", new_task.timestamp, ", Mailbox Address: ", new_task.address, ", Data: ", new_task.data)
+            self.last_run_time = time.ctime()
+            self.background_go_flag = True
+        else:
+            # Run background tasks once
+            if self.background_go_flag == True:
+                print("TASK MANAGER - BACKGROUND TASK")
+                self.state_manager.update_json_file()
+                self.background_go_flag = False
 
     def pause(self):
         self.run_task_switch = False
@@ -94,10 +120,8 @@ class TaskManager(threading.Thread):
         print("[TaskManager]: Run Task Switch = ", self.run_task_switch)
 
     def run(self):
-
         while(True):
             if self.run_task_switch:
                 self.pop_task_queue()
 
-            time.sleep(0.01)
 

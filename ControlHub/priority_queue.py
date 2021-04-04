@@ -32,6 +32,7 @@ class MyPriorityQueue:
             first_item = self.queue_list[0]
             self.queue_list.pop(0)
             self.queue_size = self.queue_size - 1
+            self.v()
             return first_item
         self.v()
 
