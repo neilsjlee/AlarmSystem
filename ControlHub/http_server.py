@@ -38,6 +38,7 @@ def alert():
     # The server thread handles the alert by itself right away.
     print("Alert received")
     data = request.get_json()
+    print(data)
     print("{\"message_type\":\"alert\",\"device_id\":\"", data['device_id'], "\"}")
     mqtt_publisher.publish_message("{\"message_type\":\"alert\",\"device_id\":\""+data['device_id']+"\"}")
     return jsonify(data)
@@ -61,7 +62,10 @@ def current_status():
 # Register/Deregister Requests (Priority # 1)
 @server.route('/register', methods=['POST'])
 def register():
+    print("REGISTER REQUEST: ", request)
+
     data = request.get_json()
+    print("RECEIVED MESSAGE: ", data)
     push_task_queue('register', 1, time.ctime(), "no mailbox", data)
     return jsonify(data)
 
@@ -71,7 +75,15 @@ def deregister():
     data = request.get_json()
     mailbox_address = outgoing_mailbox_handler.assign_new_mailbox_number()
     push_task_queue('deregister', 1, time.ctime(), mailbox_address, data)
-    return jsonify("{\"mailbox_addr\":\"",mailbox_address,"\"}")
+    return "{\"mailbox_addr\":\""+str(mailbox_address)+"\"}"
+
+
+@server.route('/all_deregister', methods=['POST'])
+def all_deregister():
+    data = request.get_json()
+    mailbox_address = outgoing_mailbox_handler.assign_new_mailbox_number()
+    push_task_queue('all_deregister', 1, time.ctime(), mailbox_address, data)
+    return "{\"mailbox_addr\":\""+str(mailbox_address)+"\"}"
 
 
 # Arm/Disarm Requests (Priority # 2)
@@ -80,7 +92,7 @@ def arm_request_single():
     data = request.get_json()
     mailbox_address = outgoing_mailbox_handler.assign_new_mailbox_number()
     push_task_queue('arm_request_single', 2, time.ctime(), mailbox_address, data)
-    return jsonify("{\"mailbox_addr\":\"",mailbox_address,"\"}")
+    return "{\"mailbox_addr\":\""+str(mailbox_address)+"\"}"
 
 
 @server.route('/disarm_request_single', methods=['POST'])
@@ -88,7 +100,7 @@ def disarm_request_single():
     data = request.get_json()
     mailbox_address = outgoing_mailbox_handler.assign_new_mailbox_number()
     push_task_queue('disarm_request_single', 2, time.ctime(), mailbox_address, data)
-    return jsonify("{\"mailbox_addr\":\"",mailbox_address,"\"}")
+    return "{\"mailbox_addr\":\""+str(mailbox_address)+"\"}"
 
 
 @server.route('/arm_request_all', methods=['POST'])
@@ -96,7 +108,7 @@ def arm_request_all():
     data = request.get_json()
     mailbox_address = outgoing_mailbox_handler.assign_new_mailbox_number()
     push_task_queue('arm_request_all', 2, time.ctime(), mailbox_address, data)
-    return jsonify("{\"mailbox_addr\":\"",mailbox_address,"\"}")
+    return "{\"mailbox_addr\":\""+str(mailbox_address)+"\"}"
 
 
 @server.route('/disarm_request_all', methods=['POST'])
@@ -104,7 +116,7 @@ def disarm_request_all():
     data = request.get_json()
     mailbox_address = outgoing_mailbox_handler.assign_new_mailbox_number()
     push_task_queue('disarm_request_all', 2, time.ctime(), mailbox_address, data)
-    return jsonify("{\"mailbox_addr\":\"",mailbox_address,"\"}")
+    return "{\"mailbox_addr\":\""+str(mailbox_address)+"\"}"
 
 
 # SCR(Status Check Requests) (Priority # 3)
@@ -113,7 +125,7 @@ def scr_manual_single():
     data = request.get_json()
     mailbox_address = outgoing_mailbox_handler.assign_new_mailbox_number()
     push_task_queue('scr_manual_single', 3, time.ctime(), mailbox_address, data)
-    return jsonify("{\"mailbox_addr\":\"",mailbox_address,"\"}")
+    return "{\"mailbox_addr\":\""+str(mailbox_address)+"\"}"
 
 
 @server.route('/scr_manual_all', methods=['POST'])
@@ -121,7 +133,7 @@ def scr_manual_all():
     data = request.get_json()
     mailbox_address = outgoing_mailbox_handler.assign_new_mailbox_number()
     push_task_queue('scr_manual_all', 3, time.ctime(), mailbox_address, data)
-    return jsonify("{\"mailbox_addr\":\"",mailbox_address,"\"}")
+    return "{\"mailbox_addr\":\""+str(mailbox_address)+"\"}"
 
 
 # -----------------------------

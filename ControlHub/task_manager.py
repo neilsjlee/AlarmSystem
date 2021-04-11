@@ -28,29 +28,30 @@ class TaskManager(threading.Thread):
 
     def device_deregister_request_task(self, message):
         print("[TASK MANAGER] DEREGISTER MESSAGE RECEIVED.")
-        is_error = False
-        try:
-            target_device_ip = self.state_manager.remove_device(message.data["device_id"])
-        except:
-            print("no_proper_key")
-            is_error = True
-        if is_error == False:
-            outgoing_message = ["{\"message_type\":\"deregister\",\"device_ip\":\""+target_device_ip+"\"}"]
-            self.outgoing_mailbox.put(message.address, outgoing_message)
+        did = message.data["device_id"]
+        outgoing_message = ["{\"message_type\":\"deregi\",\"device_ip\":\"" + self.state_manager.get_ip_address_by_device_id(did) + "\", \"device_id\":\""+did+"\"}"]
+        self.outgoing_mailbox.put(message.address, outgoing_message)
+
+    def all_device_deregister_request_task(self, message):
+        print("[TASK MANAGER] DEREGISTER MESSAGE RECEIVED.")
+        outgoing_messages = []
+        all_ip_addresses = self.state_manager.get_all_ip_addresses()
+        if len(all_ip_addresses) != 0:
+            for a in all_ip_addresses:
+                outgoing_messages.append("{\"message_type\":\"deregi\",\"device_ip\":\"" + a[1] + "\", \"device_id\":\""+a[0]+"\"}")
+            self.outgoing_mailbox.put(message.address, outgoing_messages)
 
     def arm_request_task(self, message):
         print("[TASK MANAGER] SINGLE DEVICE ARM REQUEST MESSAGE RECEIVED.")
         did = message.data["device_id"]
-        outgoing_message = ["{\"message_type\":\"arm\",\"device_ip\":\"" + self.state_manager.get_ip_address_by_device_id(did) + "\"}"]
+        outgoing_message = ["{\"message_type\":\"arm\",\"device_ip\":\"" + self.state_manager.get_ip_address_by_device_id(did) + "\", \"device_id\":\""+did+"\"}"]
         self.outgoing_mailbox.put(message.address, outgoing_message)
-        # self.state_manager.devices_list_json[did]['armed'] = True
 
     def disarm_request_task(self, message):
         print("[TASK MANAGER] SINGLE DEVICE DISARM REQUEST MESSAGE RECEIVED.")
         did = message.data["device_id"]
-        outgoing_message = ["{\"message_type\":\"disarm\",\"device_ip\":\"" + self.state_manager.get_ip_address_by_device_id(did) + "\"}"]
+        outgoing_message = ["{\"message_type\":\"disarm\",\"device_ip\":\"" + self.state_manager.get_ip_address_by_device_id(did) + "\", \"device_id\":\""+did+"\"}"]
         self.outgoing_mailbox.put(message.address, outgoing_message)
-        # self.state_manager.devices_list_json[did]['armed'] = True
 
     def all_arm_request_task(self, message):
         print("[TASK MANAGER] ALL ARM REQUEST MESSAGE RECEIVED.")
@@ -58,7 +59,7 @@ class TaskManager(threading.Thread):
         all_ip_addresses = self.state_manager.get_all_ip_addresses()
         if len(all_ip_addresses) != 0:
             for a in all_ip_addresses:
-                outgoing_messages.append("{\"message_type\":\"arm\",\"device_ip\":\"" + a + "\"}")
+                outgoing_messages.append("{\"message_type\":\"arm\",\"device_ip\":\"" + a[1] + "\", \"device_id\":\""+ a[0] +"\"}")
             self.outgoing_mailbox.put(message.address, outgoing_messages)
 
     def all_disarm_request_task(self, message):
@@ -67,17 +68,25 @@ class TaskManager(threading.Thread):
         all_ip_addresses = self.state_manager.get_all_ip_addresses()
         if len(all_ip_addresses) != 0:
             for a in all_ip_addresses:
-                outgoing_messages.append("{\"message_type\":\"disarm\",\"device_ip\":\"" + a + "\"}")
+                outgoing_messages.append("{\"message_type\":\"disarm\",\"device_ip\":\"" + a[1] + "\", \"device_id\":\""+a[0]+"\"}")
             self.outgoing_mailbox.put(message.address, outgoing_messages)
 
     def status_check_manual_request_task(self, message):
         print("[TASK MANAGER] SINGLE DEVICE STATUS CHECK REQUEST MESSAGE RECEIVED.")
-        self.state_manager.get_ip_address_by_device_id(message.data["device_id"])
+        did = message.data["device_id"]
+        outgoing_message = ["{\"message_type\":\"status\",\"device_ip\":\"" + self.state_manager.get_ip_address_by_device_id(did) + "\", \"device_id\":\"" + did + "\"}"]
+        self.outgoing_mailbox.put(message.address, outgoing_message)
+
         # self.state_manager.add_new_device(message.data["device_id"])
 
     def all_device_status_check_manual_request_task(self, message):
         print("[TASK MANAGER] ALL DEVICE STATUS CHECK REQUEST MESSAGE RECEIVED.")
-        # self.state_manager.add_new_device(message.data["device_id"])
+        outgoing_messages = []
+        all_ip_addresses = self.state_manager.get_all_ip_addresses()
+        if len(all_ip_addresses) != 0:
+            for a in all_ip_addresses:
+                outgoing_messages.append("{\"message_type\":\"status\",\"device_ip\":\"" + a[1] + "\", \"device_id\":\""+a[0]+"\"}")
+            self.outgoing_mailbox.put(message.address, outgoing_messages)
 
     def periodic_status_check_request_task(self):
         print("[TASK MANAGER] PERIODIC STATUS CHECK")
@@ -89,10 +98,10 @@ class TaskManager(threading.Thread):
             new_task = self.task_queue.get()
             if new_task.task_type == 'register':
                 self.device_register_request_task(new_task)
-            elif new_task.task_type == 'scr_manual_single':
-                self.status_check_manual_request_task(new_task)
             elif new_task.task_type == 'deregister':
                 self.device_deregister_request_task(new_task)
+            elif new_task.task_type == 'all_deregister':
+                self.all_device_deregister_request_task(new_task)
             elif new_task.task_type == 'arm_request_single':
                 self.arm_request_task(new_task)
             elif new_task.task_type == 'disarm_request_single':
@@ -101,6 +110,10 @@ class TaskManager(threading.Thread):
                 self.all_arm_request_task(new_task)
             elif new_task.task_type == 'disarm_request_all':
                 self.all_disarm_request_task(new_task)
+            elif new_task.task_type == 'scr_manual_single':
+                self.status_check_manual_request_task(new_task)
+            elif new_task.task_type == 'scr_manual_all':
+                self.all_device_status_check_manual_request_task(new_task)
             print("Priority Level: ", new_task.priority, ", Time: ", new_task.timestamp, ", Mailbox Address: ", new_task.address, ", Data: ", new_task.data)
             self.last_run_time = time.ctime()
             self.background_go_flag = True

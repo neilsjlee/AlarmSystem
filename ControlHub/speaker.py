@@ -1,3 +1,6 @@
+# https://peppe8o.com/use-active-buzzer-with-raspberry-pi-and-python/
+# sudo apt install rpi.gpio
+
 import sys
 import RPi.GPIO as GPIO
 import time

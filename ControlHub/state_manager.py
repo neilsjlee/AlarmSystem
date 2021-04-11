@@ -66,19 +66,28 @@ class StateManager:
         self.p()
         temp = []
         for each in self.devices_list_json:
-            temp.append(self.devices_list_json[each]['device_ip'])
+            temp.append([self.devices_list_json[each]['device_id'], self.devices_list_json[each]['device_ip']])
         print("get_all_ip_addresses: ", temp)
         self.v()
         return temp
 
-    def update_state_for_a_device(self, did, data):
+    def update_state_for_a_device(self, did, state):
         self.p()
-        self.devices_list_json[did] = json(data)
+        self.devices_list_json[did]['armed'] = state
+        self.devices_list_json[did]['last_status_update_time'] = time.ctime()
         self.v()
 
     def update_json_file(self):
+        self.p()
         with open(system_status_file_path, 'w') as file_write:
             json.dump(self.devices_list_json, file_write)
+        self.v()
+
+    def return_current_state(self):
+        self.p()
+        temp = json.dumps(self.devices_list_json)
+        self.v()
+        return temp
 
     def p(self):
         self.lock.acquire()

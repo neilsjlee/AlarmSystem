@@ -162,7 +162,8 @@ def init():
 
     # Start "MQTT Publisher"
     mqtt_publisher = MqttPublisher()
-    mqtt_publisher.update_broker_ip(private_ip)
+    # mqtt_publisher.update_broker_ip(private_ip)
+    mqtt_publisher.update_broker_ip("192.168.1.195")
 
     # Pass 'MQTT Publisher' instance to Task Manager & Server
     task_manager.get_mqtt_publisher(mqtt_publisher)
@@ -172,6 +173,7 @@ def init():
     message_sender = MessageSender()
     message_sender.get_outgoing_mailbox(outgoing_mailbox)
     message_sender.get_state_manager(state_manager)
+    message_sender.get_mqtt_publisher(mqtt_publisher)
     message_sender.start()
 
     #
