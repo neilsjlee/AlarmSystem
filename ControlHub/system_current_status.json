@@ -1,1 +1,1 @@
-{"00000001": {"device_type": "PIRSensor", "device_id": "00000001", "device_ip": "192.168.1.231", "device_power": true, "last_status_update_time": "Sat Apr 10 15:08:36 2021", "up_time": "Sat Apr 10 15:08:36 2021", "armed": false}}
+{"00000001": {"device_type": "PIRSensor", "device_id": "00000001", "device_ip": "192.168.1.231", "device_power": true, "last_status_update_time": "Sun Apr 11 18:54:44 2021", "up_time": "Sat Apr 10 15:08:36 2021", "armed": false}}

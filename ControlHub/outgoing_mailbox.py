@@ -45,6 +45,7 @@ class OutgoingMailbox:
         self.tail_go_next()
         x = self.tail
         y = self.list[self.tail]
+        print("OUTGOING_MAILBOX - PULL: ", x, y)
         self.list[self.tail] = []
         self.number_of_items = self.number_of_items - 1
         self.v()

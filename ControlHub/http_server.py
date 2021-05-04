@@ -1,6 +1,10 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template, send_file, send_from_directory
 import time
 import json
+import binascii
+from speaker import *
+import os
+import datetime
 
 # Server receives HTTP requests from Mobile App or Sensors and transfers the requests to TaskManager.
 # Each type of requests should have priority level,
@@ -9,6 +13,8 @@ import json
 task_queue_handler = None
 outgoing_mailbox_handler = None
 mqtt_publisher = None
+speaker = Speaker()
+speaker.start()
 
 server = Flask(__name__)
 
@@ -33,14 +39,63 @@ def get_mqtt_publisher(mqtt_p):
 # '/alert': Sensors should send "Alert" message to this URI
 @server.route('/alert', methods=['POST'])
 def alert():
+    time1 = datetime.datetime.now()
     # ALERT MESSAGE RECEIVED.
     # Alert message does not go into task queue.
     # The server thread handles the alert by itself right away.
-    print("Alert received")
+    speaker.buzzer_on()
+    time2 = datetime.datetime.now()
     data = request.get_json()
+    mqtt_publisher.publish_message("{\"message_type\":\"alert\",\"device_id\":\""+data['device_id']+"\"}")
+    time3 = datetime.datetime.now()
+    print("Alert received")
     print(data)
     print("{\"message_type\":\"alert\",\"device_id\":\"", data['device_id'], "\"}")
-    mqtt_publisher.publish_message("{\"message_type\":\"alert\",\"device_id\":\""+data['device_id']+"\"}")
+    print("Alert - Speaker On - Time Taken: ", time2 - time1)
+    print("Alert - MQTT Message - Time Taken: ", time3 - time1)
+    return jsonify(data)
+
+
+# '/alert': Sensors should send "Alert" message to this URI
+@server.route('/buzzer_off', methods=['POST'])
+def buzzer_off():
+    time1 = datetime.datetime.now()
+    # ALERT MESSAGE RECEIVED.
+    # Alert message does not go into task queue.
+    # The server thread handles the alert by itself right away.
+    print("Buzzer Off received")
+    speaker.buzzer_off()
+    data = request.get_json()
+    time2 = datetime.datetime.now()
+    print("Buzzer Off Time Taken: ", time2 - time1)
+    return jsonify(data)
+
+
+# '/door_unlocked': Sensors should send "Alert" message to this URI
+@server.route('/door_unlocked', methods=['POST'])
+def door_unlocked():
+    # ALERT MESSAGE RECEIVED.
+    # Alert message does not go into task queue.
+    # The server thread handles the alert by itself right away.
+    print("Door Unlocked received")
+    data = request.get_json()
+    print(data)
+    # print("{\"message_type\":\"alert\",\"device_id\":\"", data['device_id'], "\"}")
+    mqtt_publisher.publish_message("{\"message_type\":\"door_unlocked\",\"device_id\":\""+data['device_id']+"\"}")
+    return jsonify(data)
+
+
+# '/door_locked': Sensors should send "Alert" message to this URI
+@server.route('/door_locked', methods=['POST'])
+def door_locked():
+    # ALERT MESSAGE RECEIVED.
+    # Alert message does not go into task queue.
+    # The server thread handles the alert by itself right away.
+    print("Door Locked received")
+    data = request.get_json()
+    print(data)
+    # print("{\"message_type\":\"alert\",\"device_id\":\"", data['device_id'], "\"}")
+    mqtt_publisher.publish_message("{\"message_type\":\"door_locked\",\"device_id\":\""+data['device_id']+"\"}")
     return jsonify(data)
 
 
@@ -130,10 +185,36 @@ def scr_manual_single():
 
 @server.route('/scr_manual_all', methods=['POST'])
 def scr_manual_all():
+    time1 = datetime.datetime.now()
     data = request.get_json()
     mailbox_address = outgoing_mailbox_handler.assign_new_mailbox_number()
     push_task_queue('scr_manual_all', 3, time.ctime(), mailbox_address, data)
+    time2 = datetime.datetime.now()
+    print("SCR_MANUAL ALL Time Taken: ", time2 - time1)
     return "{\"mailbox_addr\":\""+str(mailbox_address)+"\"}"
+
+
+@server.route('/cam_photo', methods=['POST', 'GET'])
+def cam_photo():
+    script_dir = os.path.dirname(__file__)
+    rel_path = "photo/img.jpg"
+    abs_file_path = os.path.join(script_dir, rel_path)
+
+    if request.method == 'POST':
+        print("Receiving photo from Camera")
+        hex_data = request.data
+        # print("CAM_PHOTO_POST_REQUEST: ", hex_data)
+        # bin_data = binascii.unhexlify(hex_data)
+        jpeg_data = hex_data
+        with open(abs_file_path, 'wb') as out_file:
+            out_file.write(jpeg_data)
+        return "{\"mailbox_addr\":\"0\"}"
+
+    if request.method == 'GET':
+        print("cam_photo GET request received")
+        filepath = './photo'
+        filename = 'img.jpg'
+        return send_from_directory(filepath, filename, as_attachment=True)
 
 
 # -----------------------------

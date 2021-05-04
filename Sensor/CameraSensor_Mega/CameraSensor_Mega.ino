@@ -8,19 +8,26 @@
 #include "SPI.h"
 #include <EEPROM.h>
 #include <ArduinoJson.h>
+#include <Adafruit_VC0706.h>
 
-#define pirPin 2
+
+#define VC0706_TX 2
+#define VC0706_RX 3
 #define ledPin 4
 
-String DEVICE_ID = "00000001";
-String DEVICE_TYPE = "PIRSensor";
+String DEVICE_ID = "00000002";
+String DEVICE_TYPE = "Camera";
 
-SoftwareSerial Serial1(8, 9); // Wi-Fi Module ESP-01 RX & TX
+//SoftwareSerial cameraconnection(VC0706_TX, VC0706_RX);  // VC0706 Camera Module RX & TX
+//Adafruit_VC0706 cam = Adafruit_VC0706(&cameraconnection);
 
-PN532_SPI pn532hwspi(SPI, 10);
+Adafruit_VC0706 cam = Adafruit_VC0706(&Serial2);
+
+//SoftwareSerial MySerial1(8, 9); // Wi-Fi Module ESP-01 RX & TX
+
+PN532_SPI pn532hwspi(SPI, 53);
 SNEP nfc(pn532hwspi);
 
-int pirSensorRead = 0;
 bool motionState = false;
 // iPSS = isPreviousSetupSuccessful
 char iPSS = 'x';
@@ -31,12 +38,6 @@ const char server_ip[15] = "";
 int status = WL_IDLE_STATUS;     // the Wifi radio's status
 String my_ip = "";
 bool armed = false;
-unsigned long time0;
-unsigned long time1;
-unsigned long time2;
-unsigned long time3;
-unsigned long time4;
-unsigned long time5;
 
 // Initialize the Ethernet client object
 WiFiEspClient client;
@@ -58,9 +59,60 @@ void setup()
   DeserializationError error;
   
   pinMode(ledPin, OUTPUT);
-  pinMode(pirPin, INPUT);
   
   Serial.begin(115200);
+
+  Serial.println(F("VC0706 Camera test"));
+  
+  // Try to locate the camera
+  if (cam.begin()) {
+    Serial.println(F("Camera Found:"));
+  } else {
+    Serial.println(F("No camera found?"));
+    //while(true);
+  }
+
+  // Print out the camera version information (optional)
+  char *reply = cam.getVersion();
+  if (reply == 0) {
+    Serial.print(F("Failed to get version"));
+  } else {
+    Serial.println(F("-----------------"));
+    Serial.print(reply);
+    Serial.println(F("-----------------"));
+  }
+  // Set the picture size - you can choose one of 640x480, 320x240 or 160x120 
+  // Remember that bigger pictures take longer to transmit!
+  
+  //cam.setImageSize(VC0706_640x480);        // biggest
+  cam.setImageSize(VC0706_320x240);        // medium
+  //cam.setImageSize(VC0706_160x120);          // small
+
+  // You can read the size back from the camera (optional, but maybe useful?)
+  uint8_t imgsize = cam.getImageSize();
+  Serial.print(F("Image size: "));
+  if (imgsize == VC0706_640x480) Serial.println(F("640x480"));
+  if (imgsize == VC0706_320x240) Serial.println(F("320x240"));
+  if (imgsize == VC0706_160x120) Serial.println(F("160x120"));
+
+  // Two new functions, 'getAEFlicker' and 'setAEFlicker()' was added to the <Adafruit_VC0706.h> library
+  // in order to check the current AE Flicker setting 
+  // and change it from 60HZ to 50HZ.
+  Serial.print(F("AE Flicker Setting: "));
+  Serial.println(cam.getAEFlicker());
+  Serial.println(cam.setAEFlicker(0)); // AE Flicker: 50HZ
+  Serial.print(F("AE Flicker Setting: "));
+  Serial.println(cam.getAEFlicker());
+
+  // Two new functions, 'getAEAutoOrIndoor' and 'setAEAutoOrIndoor()' was added to the <Adafruit_VC0706.h> library
+  // in order to check the current AE environment setting 
+  // and change it from 'Auto Switch' to 'Force Indoor',
+  // because 'Auto Switch' changed the image's brightness so dramatically that it recognized that change as a motion.
+  Serial.print(F("AE Auto/Force Indoor Setting: "));
+  Serial.println(cam.getAEAutoOrIndoor());
+  Serial.println(cam.setAEAutoOrIndoor(1)); // AE Forced Outdoor
+  Serial.print(F("AE Auto/Force Indoor Setting: "));
+  Serial.println(cam.getAEAutoOrIndoor());
 
   /*
   // TEST PURPOSE ONLY - EEPROM RESET
@@ -97,8 +149,8 @@ void setup()
     Serial.print(F("IP: "));Serial.println(server_ip);
   }
     
-  Serial1.begin(9600);
-  WiFi.init(&Serial1);
+  Serial3.begin(115200);
+  WiFi.init(&Serial3);
 
   // check for the presence of the shield
   if (WiFi.status() == WL_NO_SHIELD) {
@@ -151,48 +203,103 @@ void setup()
   delay(5000);
 
   sendRegisterPostMessage();
+  //  Motion detection system can alert you when the camera 'sees' motion!
+  // cam.setMotionDetect(true);           // turn it on
+  cam.setMotionDetect(false);        // turn it off   (default)
+
+  // You can also verify whether motion detection is active!
+  Serial.print(F("Motion detection is "));
+  if (cam.getMotionDetect()) 
+    Serial.println(F("ON"));
+  else 
+    Serial.println(F("OFF"));
+
 }
 
 void loop()
 {
-  time0 = micros();
-  
+  unsigned long currentMillis = millis();
+
+  // if there are incoming bytes available
+  // from the server, read them and print them
   while (client.available()) {
     char c = client.read();
     Serial.write(c);
   }
 
   if(armed){
-    pirSensorRead = digitalRead(pirPin);
+    /*
+    if (cam.motionDetected() == 1) {
+      digitalWrite(ledPin, HIGH);
+      Serial.println(F("MOTION DETECTED"));
+    }
+    else {
+      digitalWrite(ledPin, LOW);
+      Serial.println(F("MOTION NOT DETECTED"));
+    }
+    */
+    if (cam.motionDetected() == 1) {
+      digitalWrite(ledPin, HIGH);
+      Serial.print(F("cam.motionDetected(): "));Serial.println(cam.motionDetected());
 
-    if (pirSensorRead == HIGH) {
       if (motionState == false){
         motionState = true;
-        time1 = micros();
-        Serial.print(F("ARMED? "));
-        Serial.println(armed);
-        digitalWrite(ledPin, HIGH);Serial.println(F("Motion Detected! Sending POST message to Control Hub."));
-        time2 = micros();
+        cam.setMotionDetect(false);
+        Serial.println(F("Motion Detected! Sending POST message to Control Hub."));
         sendAlertPostMessage();
-        time3 = micros();
-        Serial.print(F("Last Loop -> Loop Start: "));Serial.println(time0-time4);
-        Serial.print(F("Loop Start -> Motion Detected: "));Serial.println(time1-time0);
-        Serial.print(F("Motion Detected -> Start Sending HTTP Post message: "));Serial.println(time2-time1);
-        Serial.print(F("Start Sending HTTP Post message -> Finished Sending message: "));Serial.println(time3-time2);
       }
     }
     else {
-      digitalWrite(ledPin, LOW); // Turn off the on-board LED.
-      delay(150);
       // Change the motion state to false (no motion):
       if (motionState == true) {
         Serial.println(F("Motion ended!"));
+        Serial.print(F("cam.motionDetected(): "));Serial.println(cam.motionDetected());
+        if (! cam.takePicture()) 
+          Serial.println("Failed to snap!");
+        else 
+          Serial.println("Picture taken!");
+          
+        uint16_t jpglen = cam.frameLength();
+        Serial.print(jpglen, DEC);
+        Serial.println(F(" byte image"));
+
+        if (client.connect(server_ip, 2002)) {
+          Serial.println(F("SENDING POST - Connected to server"));
+          client.print(F("POST /cam_photo HTTP/1.1\r\nHost: ")); client.print(String(server_ip)); client.print(F(":2002\r\nAccept: */*\r\nContent-Length: "));
+          client.print(jpglen, DEC); client.print(F("\r\nContent-Type: image/jpeg\r\n\r\n"));
+          delay(1000);
+          while (jpglen > 0) {
+            // ****** https://m.blog.naver.com/PostView.nhn?blogId=roboholic84&logNo=220821919602&proxyReferer=https:%2F%2Fwww.google.com%2F
+            // read 32 bytes at a time;
+            uint8_t *buffer;
+            uint8_t bytesToRead = min((uint16_t)32, jpglen); // change 32 to 64 for a speedup but may not work with all setups!
+            buffer = cam.readPicture(bytesToRead);
+            //imgFile.write(buffer, bytesToRead);
+  
+            // Serial.print("Read ");  Serial.print(bytesToRead, DEC); Serial.println(" bytes");
+            //Serial.write(buffer, bytesToRead);
+            
+            //client.print(F("{\"device_id\":\"")); client.print(DEVICE_ID); client.println(F("\"}"));
+            client.write(buffer, bytesToRead);
+    
+            jpglen -= bytesToRead;
+          }
+
+          
+          client.stop();
+          Serial.println(F("SENDING POST - Disconnected from server"));
+        }
+
+        Serial.println(F("Camera Done"));
         motionState = false;
+        
+        cam.resumeVideo();
+        delay(1000);
+        digitalWrite(ledPin, LOW); // Turn off the on-board LED.
+        cam.setMotionDetect(true);
       }
     }
   }
-  time4 = millis();
-  
 
   WiFiEspClient client1 = server.available();
   if(client1){
@@ -212,6 +319,12 @@ void loop()
           if (buf.endsWith("/arm")){
             Serial.print(F("arm request received"));
             armed = true;
+            cam.setMotionDetect(true);           // turn it on
+            Serial.print(F("Motion detection is "));
+            if (cam.getMotionDetect()) 
+              Serial.println(F("ON"));
+            else 
+              Serial.println(F("OFF"));
             uriStart_post = false;
           }
           else if (buf.endsWith("/disarm")){
@@ -233,6 +346,7 @@ void loop()
           uriStart_get = true;
         }
         if (buf.endsWith("HTTP")) {
+         Serial.println(F("END OF INCOMING MESSAGE"));
           if (uriStart_get == false){
             Serial.println(F("RESPONDING TO A POST REQUEST"));
             client1.print(F("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\nresponse\":\"ack\"}\r\n"));
@@ -263,7 +377,6 @@ void loop()
     }
   }
 }
-
 
 void getSetupDataFromNfc(char* str){
   uint8_t ndefBuf[128];
@@ -323,6 +436,7 @@ void sendAlertPostMessage(){
     client.print(F("POST /alert HTTP/1.1\r\nHost: ")); client.print(String(server_ip)); client.print(F(":2002\r\nAccept: */*\r\nContent-Length: "));
     client.print(String(DEVICE_ID.length()+18)); client.print(F("\r\nContent-Type: application/json\r\n\r\n"));
     client.print(F("{\"device_id\":\"")); client.print(DEVICE_ID); client.println(F("\"}"));
+    delay(1000);
     client.stop();
     Serial.println(F("SENDING POST - Disconnected from server"));
   }

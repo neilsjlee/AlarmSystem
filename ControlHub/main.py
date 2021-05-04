@@ -153,7 +153,7 @@ def init():
     # Start "Task Manager"
     task_manager = TaskManager(task_queue, outgoing_mailbox)
 
-    # Start "State Manager"
+    # Create "State Manager"
     state_manager = StateManager(task_queue, task_manager)
 
     # Pass 'State Manager' instance to Task Manager
@@ -161,19 +161,19 @@ def init():
     task_manager.start()
 
     # Start "MQTT Publisher"
-    mqtt_publisher = MqttPublisher()
-    # mqtt_publisher.update_broker_ip(private_ip)
-    mqtt_publisher.update_broker_ip("192.168.1.195")
+    mqtt_publisher_ = MqttPublisher()
+    # mqtt_publisher_.update_broker_ip("192.168.1.195")
+    mqtt_publisher_.update_broker_ip(private_ip)
 
     # Pass 'MQTT Publisher' instance to Task Manager & Server
-    task_manager.get_mqtt_publisher(mqtt_publisher)
-    get_mqtt_publisher(mqtt_publisher)
+    task_manager.get_mqtt_publisher(mqtt_publisher_)
+    get_mqtt_publisher(mqtt_publisher_)
 
     # MessageSender
     message_sender = MessageSender()
     message_sender.get_outgoing_mailbox(outgoing_mailbox)
     message_sender.get_state_manager(state_manager)
-    message_sender.get_mqtt_publisher(mqtt_publisher)
+    message_sender.get_mqtt_publisher(mqtt_publisher_)
     message_sender.start()
 
     #
@@ -197,6 +197,7 @@ if __name__ == "__main__":
         elif wifi_ssid != "":
             if check_internet_connection() == "Network Active":
                 print("Network Active")
+                os.system("sudo systemctl restart mosquitto")
 
             else:
                 print("Network Error - ")

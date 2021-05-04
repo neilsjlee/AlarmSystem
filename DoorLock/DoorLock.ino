@@ -9,18 +9,18 @@
 #include <EEPROM.h>
 #include <ArduinoJson.h>
 
-#define pirPin 2
+#define doorLockPin 2
+#define keyInputButtonPin 3
 #define ledPin 4
 
-String DEVICE_ID = "00000001";
-String DEVICE_TYPE = "PIRSensor";
+String DEVICE_ID = "00000003";
+String DEVICE_TYPE = "DoorLock";
 
 SoftwareSerial Serial1(8, 9); // Wi-Fi Module ESP-01 RX & TX
 
 PN532_SPI pn532hwspi(SPI, 10);
 SNEP nfc(pn532hwspi);
 
-int pirSensorRead = 0;
 bool motionState = false;
 // iPSS = isPreviousSetupSuccessful
 char iPSS = 'x';
@@ -31,12 +31,6 @@ const char server_ip[15] = "";
 int status = WL_IDLE_STATUS;     // the Wifi radio's status
 String my_ip = "";
 bool armed = false;
-unsigned long time0;
-unsigned long time1;
-unsigned long time2;
-unsigned long time3;
-unsigned long time4;
-unsigned long time5;
 
 // Initialize the Ethernet client object
 WiFiEspClient client;
@@ -58,7 +52,8 @@ void setup()
   DeserializationError error;
   
   pinMode(ledPin, OUTPUT);
-  pinMode(pirPin, INPUT);
+  pinMode(doorLockPin, OUTPUT);
+  pinMode(keyInputButtonPin, INPUT_PULLUP);
   
   Serial.begin(115200);
 
@@ -155,45 +150,39 @@ void setup()
 
 void loop()
 {
-  time0 = micros();
-  
+  unsigned long currentMillis = millis();
+
+  // if there are incoming bytes available
+  // from the server, read them and print them
   while (client.available()) {
     char c = client.read();
     Serial.write(c);
   }
 
-  if(armed){
-    pirSensorRead = digitalRead(pirPin);
+  int keyInputButtonRead = digitalRead(keyInputButtonPin);
+  if (keyInputButtonRead == 0) {
+    Serial.println(F("KEY INPUT BUTTON PRESSED"));
+    
+    bool nfc_key_result = false;
+    nfc_key_result = keyInput();
 
-    if (pirSensorRead == HIGH) {
-      if (motionState == false){
-        motionState = true;
-        time1 = micros();
-        Serial.print(F("ARMED? "));
-        Serial.println(armed);
-        digitalWrite(ledPin, HIGH);Serial.println(F("Motion Detected! Sending POST message to Control Hub."));
-        time2 = micros();
-        sendAlertPostMessage();
-        time3 = micros();
-        Serial.print(F("Last Loop -> Loop Start: "));Serial.println(time0-time4);
-        Serial.print(F("Loop Start -> Motion Detected: "));Serial.println(time1-time0);
-        Serial.print(F("Motion Detected -> Start Sending HTTP Post message: "));Serial.println(time2-time1);
-        Serial.print(F("Start Sending HTTP Post message -> Finished Sending message: "));Serial.println(time3-time2);
+    if (nfc_key_result){
+      Serial.println(F("KEY SUCCESS"));
+      armed = !armed;
+      if(armed){
+        digitalWrite(doorLockPin, HIGH);
+        sendLockedPostMessage();
+      }
+      else{
+        digitalWrite(doorLockPin, LOW);
+        sendUnlockedPostMessage();
       }
     }
-    else {
-      digitalWrite(ledPin, LOW); // Turn off the on-board LED.
-      delay(150);
-      // Change the motion state to false (no motion):
-      if (motionState == true) {
-        Serial.println(F("Motion ended!"));
-        motionState = false;
-      }
+    else{
+      Serial.println(F("KEY FAIL"));
     }
   }
-  time4 = millis();
   
-
   WiFiEspClient client1 = server.available();
   if(client1){
     Serial.println(F("NEW CLIENT"));
@@ -212,11 +201,13 @@ void loop()
           if (buf.endsWith("/arm")){
             Serial.print(F("arm request received"));
             armed = true;
+            digitalWrite(doorLockPin, HIGH);
             uriStart_post = false;
           }
           else if (buf.endsWith("/disarm")){
             Serial.print(F("disarm request received"));
             armed = false;
+            digitalWrite(doorLockPin, LOW);
             uriStart_post = false;
           }
           else if (buf.endsWith("/deregi")){
@@ -264,7 +255,6 @@ void loop()
   }
 }
 
-
 void getSetupDataFromNfc(char* str){
   uint8_t ndefBuf[128];
   uint8_t recordBuf[128];
@@ -294,6 +284,55 @@ void getSetupDataFromNfc(char* str){
   }
 }
 
+bool keyInput(){
+  uint8_t ndefBuf[128];
+  uint8_t recordBuf[128];
+  char str[128] = "";
+  int msgSize;
+  int counter = 0;
+  int compare_result = 0;
+  while (counter < 20){ // Abort if there's no NFC Key Input from mobile app within 20 seconds.
+    Serial.println(F("Get a message from Android"));
+    msgSize = nfc.read(ndefBuf, sizeof(ndefBuf));
+    if (msgSize > 0)
+    {
+      NdefMessage msg  = NdefMessage(ndefBuf, msgSize);
+      Serial.println(F("\nSuccess"));
+      
+      NdefRecord record = msg.getRecord(0);
+
+      record.savePayload(str);
+        
+      Serial.print(F("Received Key:\t")); Serial.println(str);
+      Serial.print(F("Stored Key: \t")); Serial.println(pass);
+
+      // compare_result = strncmp(str, pass, 16);
+      for (int i = 0; i < 16; i++){
+        if(str[i] != pass[i]){
+          compare_result++;
+        }
+      }
+      
+      Serial.print(F("Compare Result: \t")); Serial.println(compare_result);
+      if(compare_result==0){
+        return true;
+      }
+      else{
+        return false;
+      }
+      break;
+    }
+    else
+    {
+      Serial.println(F("receiving failed"));
+    }
+    delay(1000);
+    counter++;
+  }
+  return false;
+}
+
+
 void printWifiStatus()
 {
   // print the SSID of the network you're attached to
@@ -314,15 +353,31 @@ void printWifiStatus()
   Serial.println(" dBm");
 }
 
-void sendAlertPostMessage(){
+void sendUnlockedPostMessage(){
   Serial.println();
-  Serial.println(F("SENDING POST - ALERT ..."));
+  Serial.println(F("SENDING POST - Door Unlocked ..."));
   
   if (client.connect(server_ip, 2002)) {
     Serial.println(F("SENDING POST - Connected to server"));
-    client.print(F("POST /alert HTTP/1.1\r\nHost: ")); client.print(String(server_ip)); client.print(F(":2002\r\nAccept: */*\r\nContent-Length: "));
+    client.print(F("POST /door_unlocked HTTP/1.1\r\nHost: ")); client.print(String(server_ip)); client.print(F(":2002\r\nAccept: */*\r\nContent-Length: "));
     client.print(String(DEVICE_ID.length()+18)); client.print(F("\r\nContent-Type: application/json\r\n\r\n"));
     client.print(F("{\"device_id\":\"")); client.print(DEVICE_ID); client.println(F("\"}"));
+    delay(1000);
+    client.stop();
+    Serial.println(F("SENDING POST - Disconnected from server"));
+  }
+}
+
+void sendLockedPostMessage(){
+  Serial.println();
+  Serial.println(F("SENDING POST - Door Locked ..."));
+  
+  if (client.connect(server_ip, 2002)) {
+    Serial.println(F("SENDING POST - Connected to server"));
+    client.print(F("POST /door_locked HTTP/1.1\r\nHost: ")); client.print(String(server_ip)); client.print(F(":2002\r\nAccept: */*\r\nContent-Length: "));
+    client.print(String(DEVICE_ID.length()+18)); client.print(F("\r\nContent-Type: application/json\r\n\r\n"));
+    client.print(F("{\"device_id\":\"")); client.print(DEVICE_ID); client.println(F("\"}"));
+    delay(1000);
     client.stop();
     Serial.println(F("SENDING POST - Disconnected from server"));
   }

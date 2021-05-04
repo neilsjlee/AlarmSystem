@@ -6,6 +6,7 @@ def dummy_function():
 
     while(True):
         count = count+1
-        print("Test Count", count)
+        if count % 10 == 0:
+            print("Test Count", count)
         time.sleep(1)
 
